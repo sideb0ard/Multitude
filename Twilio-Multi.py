@@ -54,7 +54,7 @@ def mr_question():
                 [name, from_number])
             g.db.commit()
             print "Inserted name and no to sqlite3"
-            cur = g.db.execute('select id, question_number, text from questions where question_number = 1')
+            cur = g.db.execute('select id, question_no, text from questions where question_no = 1')
             first_q = cur.fetchone()
             message = "".join([name, ", ", first_q[2]])
             session['state'] = 1
@@ -65,6 +65,10 @@ def mr_question():
     else:
         #name = respondent[2]
         name = respondent[2]
+        cur = g.db.execute('select count(*) from questions where survey_id = 1')
+        question_count = cur.fetchone()
+        print "THERE ARE %s QUESTIONS IN DB" % (question_count[0])
+
         current_q = session.get('state')
         cur = g.db.execute('select id, question_id from answers where respondent_id=? order by question_id asc',
             [respondent[0]])
@@ -75,15 +79,20 @@ def mr_question():
         print "Answer_count is %s and current_q is %s" % (str(answer_count), str(current_q))
 
         if answer_count == 0 and (current_q == 0 or current_q == None): 
-            cur = g.db.execute('select id, question_number, text from questions where question_number = 1')
+            cur = g.db.execute('select id, question_no, text from questions where question_no = 1')
             first_q = cur.fetchone()
             message = "".join([name, ", ", first_q[2]])
             print "1", message
             session['state'] = 1
+        elif answer_count == question_count[0]:
+            print "Answered all questions - thank you!"
+            message =  "Answered all questions - thank you!"
         else: 
-            next_q = answer_count + 1
-            cur = g.db.execute('select id, question_number, text from questions where question_number = ?', 
-                [next_q])
+            print "Current Q is %s" % (current_q)
+            next_q = current_q + 1
+            print "Next Q is %s" % (next_q)
+            cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
+                [current_q])
             question = cur.fetchone()
             message = "".join([name, ", ", question[2]])
             print "2", message
@@ -94,8 +103,12 @@ def mr_question():
             new_answer = request.form['Body']
             print "length of answer is %d" % len(new_answer)
             if answer_count == (current_q - 1) and len(new_answer) > 0:
-                g.db.execute('insert into answers (survey_id, text) values (1, ?) where question_no = ?',
-                    [new_answer, current_q])
+                cur = g.db.execute('select id from questions where survey_id = 1 and question_no = ?', 
+                    [current_q])
+                cur_question_id = cur.fetchone()
+                print "Respondent id is %s , current question id s %s and new_answer is %s)" % (respondent[0], cur_question_id, new_answer)
+                g.db.execute('insert into answers (respondent_id, question_id, text) values (?, ?, ?)',
+                    [respondent[0], cur_question_id[0], new_answer])
                 g.db.commit()
 
             else:
@@ -112,14 +125,14 @@ def mr_question():
 
 @app.route("/showquestions")
 def show_questions():
-    cur = g.db.execute('select id, survey_id, question_number, text from questions order by id desc')
-    questions = [dict(id=row[0], survey_id=row[1],question_number=row[2], text=row[3]) for row in cur.fetchall()]
+    cur = g.db.execute('select id, survey_id, question_no, text from questions order by id desc')
+    questions = [dict(id=row[0], survey_id=row[1],question_no=row[2], text=row[3]) for row in cur.fetchall()]
     return render_template('show_questions.html', questions=questions)
 
 @app.route('/addquestion', methods=['POST'])
 def add_question():
-    g.db.execute('insert into questions (survey_id, question_number, text) values (?, ?, ?)',
-                 [request.form['survey_id'], request.form['question_number'], request.form['text']])
+    g.db.execute('insert into questions (survey_id, question_no, text) values (?, ?, ?)',
+                 [request.form['survey_id'], request.form['question_no'], request.form['text']])
     g.db.commit()
     flash('New question was successfully added')
     return redirect(url_for('show_questions'))

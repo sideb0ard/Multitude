@@ -13,7 +13,7 @@ create table answers (
 create table questions (
   id integer primary key autoincrement,
   survey_id integer not null,
-  question_number integer not null,
+  question_no integer not null,
   text string not null
 );
 
