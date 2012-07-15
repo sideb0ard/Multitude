@@ -42,47 +42,69 @@ def mr_question():
     respondent=cursor.fetchone()
     if respondent is None:
         state = session.get('state',0)
-        if state == 0: # INITIAL MESSAGE
+        if state == 0 and request.form['Body'] == 'register': # INITIAL MESSAGE
             session['state'] = 'register'
             message = "Hola, please send me your name to continue"
         elif state == 'register':
-            #  CHECK FOR MESSAGE AND USE AS NAME
-            # inset name
             # GET QUESTION ONE
             # RETURN QUESTION ONE
+            # TODO - CHECK LENGTH OF BODY 
             name = request.form['Body']
-            message = "hey ".join([name, ", QUESTION ONE"])
+            g.db.execute('insert into respondents (name, phone_no) values (?, ?)',
+                [name, from_number])
+            g.db.commit()
+            print "Inserted name and no to sqlite3"
+            cur = g.db.execute('select id, question_number, text from questions where question_number = 1')
+            first_q = cur.fetchone()
+            message = "".join([name, ", ", first_q[2]])
             session['state'] = 1
         else: # SOMETHING WRONG - DELETE ALL EVIDENCE, RETREAT!RETREAT!!
             # DELETE ALL COOKIES
-            print "State follows.."
-            print ", ".join(state)
-            session['state'] = []
-            message = "something FUCKED UP! deleting all cookies.."
+            session.clear()
+            message = "Please reply with 'register' to begin.."
     else:
         #name = respondent[2]
         name = respondent[2]
-        current_q = session.get('state',0)
-        # ERROR CHECK - GRAB LATEST QUESTION FOR THIS RESPONDENT FROM DB AND COMPARE WITH COOKIE
-        # GET REPLY - CHECK NOT NULL
-        # UPDATE ANSWERS WITH CURRENT_Q AND TEXT
-        # GET NEXT QUESTION CURRENT_Q += 1
-        current_q += 1
-        # Save the new counter value in the session
-        session['current_q'] = current_q
+        current_q = session.get('state')
+        cur = g.db.execute('select id, question_id from answers where respondent_id=? order by question_id asc',
+            [respondent[0]])
+        answers = [dict(id=row[0], question_id=row[1]) for row in cur.fetchall()]
+        answer_count = len(answers)
+        print "Already answered %d questions" % len(answers)
 
-        message = "hey ".join([name, " your're on question", str(current_q)])
-        print message
+        print "Answer_count is %s and current_q is %s" % (str(answer_count), str(current_q))
+
+        if answer_count == 0 and (current_q == 0 or current_q == None): 
+            cur = g.db.execute('select id, question_number, text from questions where question_number = 1')
+            first_q = cur.fetchone()
+            message = "".join([name, ", ", first_q[2]])
+            print "1", message
+            session['state'] = 1
+        else: 
+            next_q = answer_count + 1
+            cur = g.db.execute('select id, question_number, text from questions where question_number = ?', 
+                [next_q])
+            question = cur.fetchone()
+            message = "".join([name, ", ", question[2]])
+            print "2", message
+
+            session['state'] = next_q
+            print "Setting state to ", next_q
+
+            new_answer = request.form['Body']
+            print "length of answer is %d" % len(new_answer)
+            if answer_count == (current_q - 1) and len(new_answer) > 0:
+                g.db.execute('insert into answers (survey_id, text) values (1, ?) where question_no = ?',
+                    [new_answer, current_q])
+                g.db.commit()
+
+            else:
+                # COOKIES EXPIRED OR OUR OF SYNC - DELETE COOKIE, DEFER TO DB COUNT AND PROCEED
+                session.clear()
+
+            session['state'] = next_q
 
     to_number = request.form['To']
-
-    #message = "".join([name, " has messaged ", str(counter)])
-
-    #g.db.execute('insert into respondents (name, phone_no) values (?, ?)',
-    #             [name, from_number])
-    #g.db.commit()
-    #print "Inserted name and no to sqlite3"
- 
     resp = twilio.twiml.Response()
     resp.sms(message)
 
