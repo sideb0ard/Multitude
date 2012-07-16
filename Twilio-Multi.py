@@ -16,13 +16,6 @@ SECRET_KEY = 'a secret key'
 app = Flask(__name__)
 app.config.from_object(__name__)
 
-# Try adding your own number to this list!
-callers = {
-    "4157455030": "The B0ardside",
-    "+14158675310": "Boots",
-    "+14158675311": "Virgil",
-}
-
 @app.before_request
 def before_request():
     g.db = connect_db()
