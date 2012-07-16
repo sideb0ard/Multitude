@@ -43,6 +43,7 @@ def mr_question():
     if respondent is None:
         state = session.get('state',0)
         if state == 0 and request.form['Body'] == 'register': # INITIAL MESSAGE
+            print "Register request received from %s" % (from_number)
             session['state'] = 'register'
             message = "Hola, please send me your name to continue"
         elif state == 'register':
@@ -60,6 +61,7 @@ def mr_question():
             session['state'] = 1
         else: # SOMETHING WRONG - DELETE ALL EVIDENCE, RETREAT!RETREAT!!
             # DELETE ALL COOKIES
+            print "Initial request received from %s" % (from_number)
             session.clear()
             message = "Please reply with 'register' to begin.."
     else:
@@ -92,7 +94,7 @@ def mr_question():
             next_q = current_q + 1
             print "Next Q is %s" % (next_q)
             cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
-                [current_q])
+                [next_q])
             question = cur.fetchone()
             message = "".join([name, ", ", question[2]])
             print "2", message
@@ -123,19 +125,37 @@ def mr_question():
 
     return str(resp)
 
-@app.route("/showquestions")
+@app.route("/questions")
 def show_questions():
     cur = g.db.execute('select id, survey_id, question_no, text from questions order by id desc')
     questions = [dict(id=row[0], survey_id=row[1],question_no=row[2], text=row[3]) for row in cur.fetchall()]
     return render_template('show_questions.html', questions=questions)
 
-@app.route('/addquestion', methods=['POST'])
+@app.route('/question', methods=['POST'])
 def add_question():
     g.db.execute('insert into questions (survey_id, question_no, text) values (?, ?, ?)',
                  [request.form['survey_id'], request.form['question_no'], request.form['text']])
     g.db.commit()
     flash('New question was successfully added')
-    return redirect(url_for('show_questions'))
+    return redirect(url_for('questions'))
+
+@app.route("/surveys")
+def show_surveys():
+    cur = g.db.execute('select id, title, by id desc')
+    surveys = [dict(id=row[0], title=row[1]) for row in cur.fetchall()]
+    return render_template('show_surveys.html', surveys=surveys)
+
+@app.route("/respondents")
+def show_respondents():
+    cur = g.db.execute('select id, name, phone_no from respondents order by id desc')
+    respondents = [dict(id=row[0], name=row[1], phone_no=row[2]) for row in cur.fetchall()]
+    return render_template('show_respondents.html', respondents=respondents)
+
+@app.route("/answers")
+def show_answers():
+    cur = g.db.execute('select id, respondent_id, question_id, text from answers order by id desc')
+    answers = [dict(id=row[0], respondent_id=row[1], question_id=row[2], text=row[3]) for row in cur.fetchall()]
+    return render_template('show_answers.html', answers=answers)
 
 def connect_db():
     return sqlite3.connect(app.config['DATABASE'])
