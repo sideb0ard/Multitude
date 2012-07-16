@@ -97,7 +97,7 @@ def mr_question():
                 print message
                 session['state'] = answer_count + 1
                 print "Setting state to ", answer_count + 1
-            elif answer_count == (current_q - 1) and len(new_answer) > 0: # IE ANSWER COUNT AND COOKIE COUNT BOTH MATCH AND ANSWER NOT EMPTY
+            elif current_q == (answer_count + 1) and len(new_answer) > 0: # IE ANSWER COUNT AND COOKIE COUNT BOTH MATCH AND ANSWER NOT EMPTY
                 # SAVE CURRENT ANSWER
                 cur = g.db.execute('select id from questions where survey_id = 1 and question_no = ?', 
                     [current_q])
