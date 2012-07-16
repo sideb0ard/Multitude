@@ -41,20 +41,20 @@ def mr_question():
     cursor.execute('SELECT id,phone_no,name FROM respondents WHERE phone_no=? LIMIT 1', [from_number])
     respondent=cursor.fetchone()
     if respondent is None:
+        # RESPONDENT IS NEW SO WE REGISTER 
         state = session.get('state',0)
         if state == 0 and request.form['Body'] == 'register': # INITIAL MESSAGE
             print "Register request received from %s" % (from_number)
             session['state'] = 'register'
             message = "Hola, please send me your name to continue"
-        elif state == 'register':
-            # GET QUESTION ONE
-            # RETURN QUESTION ONE
-            # TODO - CHECK LENGTH OF BODY 
+        elif state == 'register' and len(request.form['Body']) > 0:
+            # SAVE NAME TO DB
             name = request.form['Body']
             g.db.execute('insert into respondents (name, phone_no) values (?, ?)',
                 [name, from_number])
             g.db.commit()
             print "Inserted name and no to sqlite3"
+            #REPLY WITH FIRST QUESTION AND SET COOKIE STATE = QUESTION_NO
             cur = g.db.execute('select id, question_no, text from questions where question_no = 1')
             first_q = cur.fetchone()
             message = "".join([name, ", ", first_q[2]])
@@ -65,22 +65,22 @@ def mr_question():
             session.clear()
             message = "Please reply with 'register' to begin.."
     else:
-        #name = respondent[2]
+        # WE KNOW RESPONDENT HAS REGISTERED SO WORK OUT WHAT IS NEXT QUESTION TO SEND
         name = respondent[2]
         cur = g.db.execute('select count(*) from questions where survey_id = 1')
-        question_count = cur.fetchone()
+        question_count = cur.fetchone() # WE USE THIS TO COMPARE WITH ANSWERED COUNT TO SEE IF WE'RE DONE
         print "THERE ARE %s QUESTIONS IN DB" % (question_count[0])
 
-        current_q = session.get('state')
         cur = g.db.execute('select id, question_id from answers where respondent_id=? order by question_id asc',
             [respondent[0]])
         answers = [dict(id=row[0], question_id=row[1]) for row in cur.fetchall()]
-        answer_count = len(answers)
         print "Already answered %d questions" % len(answers)
-
+        answer_count = len(answers)
+        current_q = session.get('state')
         print "Answer_count is %s and current_q is %s" % (str(answer_count), str(current_q))
 
         if answer_count == 0 and (current_q == 0 or current_q == None): 
+            # RESPONDENT HAS NOT ANSWERED ANY SO START FROM BEGIN
             cur = g.db.execute('select id, question_no, text from questions where question_no = 1')
             first_q = cur.fetchone()
             message = "".join([name, ", ", first_q[2]])
@@ -90,21 +90,22 @@ def mr_question():
             print "Answered all questions - thank you!"
             message =  "Answered all questions - thank you!"
         else: 
-            print "Current Q is %s" % (current_q)
-            next_q = current_q + 1
-            print "Next Q is %s" % (next_q)
-            cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
-                [next_q])
-            question = cur.fetchone()
-            message = "".join([name, ", ", question[2]])
-            print "2", message
-
-            session['state'] = next_q
-            print "Setting state to ", next_q
-
+            # SEE IF OUR BODY HAS AN ANSWER RESPONSE
             new_answer = request.form['Body']
             print "length of answer is %d" % len(new_answer)
-            if answer_count == (current_q - 1) and len(new_answer) > 0:
+            print "CURRENTQ is %s" % ([current_q])
+            if answer_count > 0 and (current_q == 0 or current_q == None):
+                # COOKIES COUNT DOESNT MATCH SO LETS RESEND LAST QUESTION AND RESYNC COOKIES
+                print "Cookies don't match, so just pick up after last answered question"
+                cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
+                    [answer_count + 1])
+                question = cur.fetchone()
+                message = "".join(["QUESTION: ", str(question[1]), " ", question[2]])
+                print message
+                session['state'] = answer_count + 1
+                print "Setting state to ", answer_count + 1
+            elif answer_count == (current_q - 1) and len(new_answer) > 0: # IE ANSWER COUNT AND COOKIE COUNT BOTH MATCH AND ANSWER NOT EMPTY
+                # SAVE CURRENT ANSWER
                 cur = g.db.execute('select id from questions where survey_id = 1 and question_no = ?', 
                     [current_q])
                 cur_question_id = cur.fetchone()
@@ -113,11 +114,26 @@ def mr_question():
                     [respondent[0], cur_question_id[0], new_answer])
                 g.db.commit()
 
+                # GET NEXT QUESTION OF SEND THANK YOU IF FINISHED
+                print "Current Q is %s" % (current_q)
+                next_q = current_q + 1
+                print "Next Q is %s" % (next_q)
+                if next_q > question_count[0]:
+                    message = "You have now answered all questions - thank you very much"
+                    session.clear()
+                else:
+                    cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
+                        [next_q])
+                    question = cur.fetchone()
+                    message = "".join(["QUESTION: ", question[1], " ", question[2]])
+                    print message
+                    session['state'] = next_q
+                    print "Setting state to ", next_q
+
             else:
                 # COOKIES EXPIRED OR OUR OF SYNC - DELETE COOKIE, DEFER TO DB COUNT AND PROCEED
                 session.clear()
 
-            session['state'] = next_q
 
     to_number = request.form['To']
     resp = twilio.twiml.Response()
