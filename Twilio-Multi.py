@@ -148,7 +148,7 @@ def show_questions():
     questions = [dict(id=row[0], survey_id=row[1],question_no=row[2], text=row[3]) for row in cur.fetchall()]
     return render_template('show_questions.html', questions=questions)
 
-@app.route('/question', methods=['POST'])
+@app.route("/question", methods=['POST'])
 def add_question():
     g.db.execute('insert into questions (survey_id, question_no, text) values (?, ?, ?)',
                  [1, request.form['question_no'], request.form['text']])
@@ -156,12 +156,26 @@ def add_question():
     flash('New question was successfully added')
     return redirect(url_for('show_questions'))
 
-@app.route('/clear', methods=['POST'])
-def clear_question():
-    g.db.execute('delete from questiosn')
+@app.route("/clear_questions")
+def clear_questions():
+    g.db.execute('delete from questions')
     g.db.commit()
     flash('All questions cleared')
     return redirect(url_for('show_questions'))
+
+@app.route("/clear_respondents")
+def clear_respondents():
+    g.db.execute('delete from respondents')
+    g.db.commit()
+    flash('All respondents cleared')
+    return redirect(url_for('show_respondents'))
+
+@app.route("/clear_answers")
+def clear_answers():
+    g.db.execute('delete from answers')
+    g.db.commit()
+    flash('All answers cleared')
+    return redirect(url_for('show_answers'))
 
 @app.route("/surveys")
 def show_surveys():
@@ -177,8 +191,8 @@ def show_respondents():
 
 @app.route("/answers")
 def show_answers():
-    cur = g.db.execute('select id, respondent_id, question_id, text from answers order by id desc')
-    answers = [dict(id=row[0], respondent_id=row[1], question_id=row[2], text=row[3]) for row in cur.fetchall()]
+    cur = g.db.execute('select r.name, q.question_no, a.text from respondents r join answers a on r.id=a.respondent_id join questions q on q.id=a.question_id order by respondent_id, question_id')
+    answers = [dict(respondent_name=row[0], question_no=row[1], text=row[2]) for row in cur.fetchall()]
     return render_template('show_answers.html', answers=answers)
 
 def connect_db():

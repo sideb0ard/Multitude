@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block body %}
+  <ul class=answers>
+  {% for answer in answers %}
+    <li>{{ answer.respondent_name}} - {{ answer.question_no }}- {{ answer.text }}
+  {% else %}
+    <li><em>Unbelievable.  No entries here so far</em>
+  {% endfor %}
+  </ul>
+  <p>
+  <a href="{{ url_for('clear_answers') }}">Clear All Questions</a><br/>
+  <a href="/Multi/dashb0ard.html">Back to Dashb0ard</a>
+{% endblock %}
+

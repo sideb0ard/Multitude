@@ -4,7 +4,7 @@
     <table>
         <tr>
             <td>Question No: </td><td><input type=text size=3 name=question_no></td>
-            <td>Question Text:</td><td><input type=text size=40 name=text></td>
+            <td>Question Text:</td><td><textarea cols=80 rows=4 name=text></textarea></td>
         </tr>
         <tr>
             <td></br><input type=submit value=Add></td>
@@ -19,5 +19,8 @@
     <li><em>Unbelievable.  No entries here so far</em>
   {% endfor %}
   </ul>
+  <p>
+  <a href="{{ url_for('clear_questions') }}">Clear All Questions</a><br/>
+  <a href="/Multi/dashb0ard.html">Back to Dashb0ard</a>
 {% endblock %}
 

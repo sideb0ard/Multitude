@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block body %}
+  <ul class=respondents>
+  {% for respondent in respondents %}
+    <li>{{ respondent.name }}- {{ respondent.phone_no }}
+  {% else %}
+    <li><em>Yow. No respondents yet</em>
+  {% endfor %}
+  </ul>
+  <p>
+  <a href="{{ url_for('clear_respondents') }}">Clear All Respondents</a><br/>
+  <a href="/Multi/dashb0ard.html">Back to Dashb0ard</a>
+{% endblock %}
+
