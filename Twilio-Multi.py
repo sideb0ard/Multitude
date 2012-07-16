@@ -125,7 +125,7 @@ def mr_question():
                     cur = g.db.execute('select id, question_no, text from questions where question_no = ?', 
                         [next_q])
                     question = cur.fetchone()
-                    message = "".join(["QUESTION: ", question[1], " ", question[2]])
+                    message = "".join(["QUESTION: ", str(question[1]), " ", question[2]])
                     print message
                     session['state'] = next_q
                     print "Setting state to ", next_q
@@ -133,6 +133,7 @@ def mr_question():
             else:
                 # COOKIES EXPIRED OR OUR OF SYNC - DELETE COOKIE, DEFER TO DB COUNT AND PROCEED
                 session.clear()
+                message = "reset>>"
 
 
     to_number = request.form['To']
@@ -143,17 +144,24 @@ def mr_question():
 
 @app.route("/questions")
 def show_questions():
-    cur = g.db.execute('select id, survey_id, question_no, text from questions order by id desc')
+    cur = g.db.execute('select id, survey_id, question_no, text from questions order by id asc')
     questions = [dict(id=row[0], survey_id=row[1],question_no=row[2], text=row[3]) for row in cur.fetchall()]
     return render_template('show_questions.html', questions=questions)
 
 @app.route('/question', methods=['POST'])
 def add_question():
     g.db.execute('insert into questions (survey_id, question_no, text) values (?, ?, ?)',
-                 [request.form['survey_id'], request.form['question_no'], request.form['text']])
+                 [1, request.form['question_no'], request.form['text']])
     g.db.commit()
     flash('New question was successfully added')
-    return redirect(url_for('questions'))
+    return redirect(url_for('show_questions'))
+
+@app.route('/clear', methods=['POST'])
+def clear_question():
+    g.db.execute('delete from questiosn')
+    g.db.commit()
+    flash('All questions cleared')
+    return redirect(url_for('show_questions'))
 
 @app.route("/surveys")
 def show_surveys():

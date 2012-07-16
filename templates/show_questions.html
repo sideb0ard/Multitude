@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block body %}
+  <form action="{{ url_for('add_question') }}" method=post class=add-entry>
+    <table>
+        <tr>
+            <td>Question No: </td><td><input type=text size=3 name=question_no></td>
+            <td>Question Text:</td><td><input type=text size=40 name=text></td>
+        </tr>
+        <tr>
+            <td></br><input type=submit value=Add></td>
+        </tr>
+    </table>
+  </form>
+  <hr>
+  <ul class=questions>
+  {% for question in questions %}
+    <li>{{ question.question_no }}- {{ question.text|safe }}
+  {% else %}
+    <li><em>Unbelievable.  No entries here so far</em>
+  {% endfor %}
+  </ul>
+{% endblock %}
+
